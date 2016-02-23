@@ -286,7 +286,7 @@ int main(int argc, char **argv)
 			break; // break in order to return to hbmenu
 
 		takePicture(camBuf);
-		writePictureToFramebufferRGB565(gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL), camBuf, 0, 0, WIDTH, HEIGHT);
+		//writePictureToFramebufferRGB565(gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL), camBuf, 0, 0, WIDTH, HEIGHT);
 
 		int w=WIDTH, h=HEIGHT;
 		u8 *image = (u8*)quirc_begin(qr, &w, &h);
