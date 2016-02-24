@@ -49,6 +49,12 @@ Result http_getinfo(char *url, app::App *app) {
 	ret = httpcGetResponseStatusCode(&context, &statuscode, 0);
 	if(ret!=0)return ret;
 
+	if(statuscode==301||statuscode==302) {
+		if(httpcGetResponseHeader(&context, (char*)"Location", (char*)url, QUIRC_MAX_PAYLOAD-1)==0){
+			return http_getinfo(url, app);
+		}
+	}
+
 	if(statuscode!=206)return -2; // 206 Partial Content
 
 	u8 *buf = (u8*)malloc(8); // Allocate u8*8 == u64
