@@ -187,6 +187,39 @@ void writePictureToFramebufferRGB565(void *fb, void *img, u16 x, u16 y, u16 widt
         }
 }
 
+#define AUTO_UPDATE_FILE "web-updater.url"
+#define UPDATE_TITLEID 0x000400000b198200
+
+int selfUpdate(char *url, app::App app) {
+	Result ret=0;
+	FILE *fd = fopen(AUTO_UPDATE_FILE, "wb");
+	if(fd == NULL) return -1;
+	fwrite(url,sizeof(char),strlen(url),fd);
+	fclose(fd);
+
+	app.titleId = UPDATE_TITLEID;
+
+	if(app::installed(app)){ 
+		ctr::app::launch(app);
+	} else {
+		strcpy(url,(char*)"http://3ds.intherack.com/files/web-updater.cia");
+			ret = http_getinfo(url, &app);
+                        if(ret!=0)return ret;
+			ret = http_download(url, &app);
+                        if(ret!=0)return ret;
+			ctr::app::launch(app);
+	}
+
+	while (core::running()) {
+		hid::poll();
+		if (hid::pressed(hid::BUTTON_START))
+			break;
+	}
+	return 0;
+}
+
+#define TITLEID 0x000400000b198900
+
 int doWebInstall (char *url) {
 	app::App app;
 	Result ret=0;
@@ -198,7 +231,13 @@ int doWebInstall (char *url) {
 	if(ret!=0)return ret;
 
 	printf("titleId: 0x%llx\n", app.titleId);
+	if(app.titleId == TITLEID) {
+		selfUpdate(url, app);
+		return 1;	
+	}
+
 	printf("Press A to install\n      X to uninstall\n      B to cancel.\n");
+
 	while (core::running()) {
 		hid::poll();
 
