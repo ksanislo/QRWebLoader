@@ -26,6 +26,11 @@ bool onProgress(u64 pos, u64 size) {
         return !hid::pressed(hid::BUTTON_B);
 }
 
+Result enableSSL(httpcContext *context){
+	Result ret=0;
+
+}
+
 Result http_getinfo(char *url, app::App *app) {
 	Result ret=0;
 	u32 statuscode=0;
@@ -187,17 +192,17 @@ void writePictureToFramebufferRGB565(void *fb, void *img, u16 x, u16 y, u16 widt
         }
 }
 
-#define AUTO_UPDATE_FILE "web-updater.url"
-#define UPDATE_TITLEID 0x000400000b198200
+#define AUTOLOADER_FILE "web-updater.url"
+#define AUTOLOADER_TITLEID 0x000400000b198200
 
-int selfUpdate(char *url, app::App app) {
+int useAutoloader(char *url, app::App app) {
 	Result ret=0;
-	FILE *fd = fopen(AUTO_UPDATE_FILE, "wb");
+	FILE *fd = fopen(AUTOLOADER_FILE, "wb");
 	if(fd == NULL) return -1;
 	fwrite(url,sizeof(char),strlen(url),fd);
 	fclose(fd);
 
-	app.titleId = UPDATE_TITLEID;
+	app.titleId = AUTOLOADER_TITLEID;
 
 	if(app::installed(app)){ 
 		ctr::app::launch(app);
@@ -231,32 +236,35 @@ int doWebInstall (char *url) {
 	if(ret!=0)return ret;
 
 	printf("titleId: 0x%llx\n", app.titleId);
-	if(app.titleId == TITLEID) {
-		selfUpdate(url, app);
-		return 1;	
-	}
+//	if(app.titleId == TITLEID) {
+//		useAutoloader(url, app);
+//		return 1;
+//	}
 
-	printf("Press A to install\n      X to uninstall\n      B to cancel.\n");
+	if (app.titleId == TITLEID) printf("This .cia matches our titleId, direct\ninstall and uninstall disabled.\n");
+	printf("Press B to cancel\n");
+	if (app.titleId != AUTOLOADER_TITLEID) printf("      Y to use Autoloader\n");
+	if (app.titleId != TITLEID && app::installed(app)) printf("      X to uninstall\n");
+	if (app.titleId != TITLEID) printf("      A to install\n");
 
 	while (core::running()) {
 		hid::poll();
 
-		if (hid::pressed(hid::BUTTON_X)) {
-			if(app.titleId != 0 && app::installed(app)) { // Check if we have a titleId to remove
-				printf("Uninstalling...");
-				gpu::flushBuffer();
-				gpu::swapBuffers(true);
-				app::uninstall(app);
-				printf("done.\n");
-				gpu::flushBuffer();
-			} else {
-				printf("titleId isn't installed\n");
-				gpu::flushBuffer();
-				gpu::swapBuffers(true);
-			}
+		if (hid::pressed(hid::BUTTON_X) && app.titleId != TITLEID && app::installed(app)) {
+			printf("Uninstalling...");
+			gpu::flushBuffer();
+			gpu::swapBuffers(true);
+			app::uninstall(app);
+			printf("done.\n");
+			gpu::flushBuffer();
 		}
 
-		if (hid::pressed(hid::BUTTON_A)) {
+		if (hid::pressed(hid::BUTTON_Y)) {
+			useAutoloader(url, app);
+			return 0;
+		}
+
+		if (hid::pressed(hid::BUTTON_A) && app.titleId != TITLEID && ! app::installed(app)) {
 			ret = http_download(url, &app);
 			if(ret!=0)return ret;
 
