@@ -26,13 +26,9 @@ bool onProgress(u64 pos, u64 size) {
         return !hid::pressed(hid::BUTTON_B);
 }
 
-Result enableSSL(httpcContext *context){
-	Result ret=0;
-
-}
-
 Result http_getinfo(char *url, app::App *app) {
 	Result ret=0;
+	u8* buf;
 	u32 statuscode=0;
 	httpcContext context;
 
@@ -48,6 +44,10 @@ Result http_getinfo(char *url, app::App *app) {
 	ret = httpcAddRequestHeaderField(&context, (char*)"Range", (char*)"bytes=11292-11299");
         if(ret!=0)return ret;
 
+	// This disables the SSL certificate checks.
+	ret = httpcSetSSLOpt(&context, 1<<9);
+	if(ret!=0)return ret;
+
 	ret = httpcBeginRequest(&context);
 	if(ret!=0)return ret;
 
@@ -62,7 +62,7 @@ Result http_getinfo(char *url, app::App *app) {
 
 	if(statuscode!=206)return -2; // 206 Partial Content
 
-	u8 *buf = (u8*)malloc(8); // Allocate u8*8 == u64
+	buf = (u8*)malloc(8); // Allocate u8*8 == u64
 	if(buf==NULL)return -1;
 	memset(buf, 0, 8); // Zero out
 
@@ -72,6 +72,7 @@ Result http_getinfo(char *url, app::App *app) {
 	free(buf);
 
         buf = (u8*)malloc(64);
+	if(buf==NULL)return -1;
 
         if(httpcGetResponseHeader(&context, (char*)"Content-Range", (char*)buf, 64)==0){
 		char *ptr = strchr((const char *)buf, 47);
@@ -98,6 +99,10 @@ Result http_download(char *url, app::App *app) {
 
         ret = httpcAddRequestHeaderField(&context, (char*)"Accept-Encoding", (char*)"gzip, deflate");
         if(ret!=0)return ret;
+
+	// This disables the SSL certificate checks.
+	ret = httpcSetSSLOpt(&context, 1<<9);
+	if(ret!=0)return ret;
 
 	ret = httpcBeginRequest(&context);
 	if(ret!=0)return ret;
@@ -285,7 +290,7 @@ int doWebInstall (char *url) {
 int main(int argc, char **argv)
 {
         core::init(argc);
-	httpcInit();
+	httpcInit(0x1000);
 	camInit();
 
 	gfxSetDoubleBuffering(GFX_TOP, true);
