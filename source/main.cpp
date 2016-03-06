@@ -8,14 +8,15 @@
 #include <string.h>
 #include <stdio.h>
 #include <inttypes.h>
+#include <math.h>
 
 extern "C" {
 #include <quirc.h>
 }
 
 #define SSLOPTION_NOVERIFY 1<<9
-#define WIDTH 640
-#define HEIGHT 480
+#define WIDTH 400
+#define HEIGHT 240
 #define WAIT_TIMEOUT 300000000ULL
 #define AUTOLOADER_FILE "web-updater.url"
 #define AUTOLOADER_URL "http://3ds.intherack.com/files/web-updater.cia"
@@ -25,6 +26,8 @@ extern "C" {
 extern "C" {
 u32 __stacksize__ = 0x40000;
 }
+
+void bhm_line(void *fb, int x1, int y1, int x2, int y2, u32 c);
 
 using namespace ctr;
 
@@ -57,7 +60,7 @@ Result http_getinfo(char *url, app::App *app){
 		goto stop;
 	}
 
-	// This disables the SSL certificate checks.
+	// Disable the SSL certificate checks.
 	ret = httpcSetSSLOpt(&context, SSLOPTION_NOVERIFY);
 	if(ret!=0){
 		goto stop;
@@ -135,7 +138,7 @@ Result http_download(char *url, app::App *app){
 		goto stop;
 	}
 
-	// This disables the SSL certificate checks.
+	// Disable the SSL certificate checks.
 	ret = httpcSetSSLOpt(&context, 1<<9);
 	if(ret!=0){
 		goto stop;
@@ -183,21 +186,18 @@ Result http_download(char *url, app::App *app){
 	return ret;
 }
 
-
 void takePicture(u16 *buf){
 	u32 bufSize;
 	Handle camReceiveEvent = 0;
 
 	CAMU_GetMaxBytes(&bufSize, WIDTH, HEIGHT);
 	CAMU_SetTransferBytes(PORT_CAM1, bufSize, WIDTH, HEIGHT);
-	CAMU_Activate(SELECT_OUT1);
 	CAMU_ClearBuffer(PORT_CAM1);
 	CAMU_StartCapture(PORT_CAM1);
 	CAMU_SetReceiving(&camReceiveEvent, (u8*)buf, PORT_CAM1, WIDTH * HEIGHT * 2, (s16) bufSize);
 	svcWaitSynchronization(camReceiveEvent, WAIT_TIMEOUT);
 	CAMU_StopCapture(PORT_CAM1);
 	svcCloseHandle(camReceiveEvent);
-	CAMU_Activate(SELECT_NONE);
 }
 
 void writePictureToIntensityMap(void *fb, void *img, u16 width, u16 height){
@@ -215,20 +215,29 @@ void writePictureToIntensityMap(void *fb, void *img, u16 width, u16 height){
 void writePictureToFramebufferRGB565(void *fb, void *img, u16 x, u16 y, u16 width, u16 height) {
 	u8 *fb_8 = (u8*) fb;
 	u16 *img_16 = (u16*) img;
-	for(int j = 0; j < height; j++) {
-		for(int i = 0; i < width; i++) {
-			int draw_y = y + (height - j)/2;
-			int draw_x = x + i/2;
-			u32 v = (draw_y + draw_x * (height/2)) * 3;
+	int i, j, draw_x, draw_y;
+	for(j = 0; j < height; j++) {
+		for(i = 0; i < width; i++) {
+			draw_y = y + height-1 - j;
+			draw_x = x + i;
+			u32 v = (draw_y + draw_x * height) * 3;
 			u16 data = img_16[j * width + i];
 			uint8_t b = ((data >> 11) & 0x1F) << 3;
 			uint8_t g = ((data >> 5) & 0x3F) << 2;
 			uint8_t r = (data & 0x1F) << 3;
-			fb_8[v] = r;
+			fb_8[ v ] = r;
 			fb_8[v+1] = g;
 			fb_8[v+2] = b;
 		}
 	}
+}
+
+void putpixel(void *fb, int x, int y, u32 c) {
+	u8 *fb_8 = (u8*) fb;
+	u32 v = ((HEIGHT - y) + (x * HEIGHT)) * 3;
+	fb_8[ v ] = (((c) >>  0) & 0xFF);
+	fb_8[v+1] = (((c) >>  8) & 0xFF);
+	fb_8[v+2] = (((c) >> 16) & 0xFF);
 }
 
 int useAutoloader(char *url, app::App app){
@@ -307,6 +316,92 @@ int doWebInstall (char *url){
 	return 0;
 }
 
+/*BRESENHAAM ALGORITHM FOR LINE DRAWING*/
+void bhm_line(void *fb,int x1,int y1,int x2,int y2,u32 c)
+{
+ int x,y,dx,dy,dx1,dy1,px,py,xe,ye,i;
+ dx=x2-x1;
+ dy=y2-y1;
+ dx1=fabs(dx);
+ dy1=fabs(dy);
+ px=2*dy1-dx1;
+ py=2*dx1-dy1;
+ if(dy1<=dx1)
+ {
+  if(dx>=0)
+  {
+   x=x1;
+   y=y1;
+   xe=x2;
+  }
+  else
+  {
+   x=x2;
+   y=y2;
+   xe=x1;
+  }
+  putpixel(fb,x,y,c);
+  for(i=0;x<xe;i++)
+  {
+   x=x+1;
+   if(px<0)
+   {
+    px=px+2*dy1;
+   }
+   else
+   {
+    if((dx<0 && dy<0) || (dx>0 && dy>0))
+    {
+     y=y+1;
+    }
+    else
+    {
+     y=y-1;
+    }
+    px=px+2*(dy1-dx1);
+   }
+   putpixel(fb,x,y,c);
+  }
+ }
+ else
+ {
+  if(dy>=0)
+  {
+   x=x1;
+   y=y1;
+   ye=y2;
+  }
+  else
+  {
+   x=x2;
+   y=y2;
+   ye=y1;
+  }
+  putpixel(fb,x,y,c);
+  for(i=0;y<ye;i++)
+  {
+   y=y+1;
+   if(py<=0)
+   {
+    py=py+2*dx1;
+   }
+   else
+   {
+    if((dx<0 && dy<0) || (dx>0 && dy>0))
+    {
+     x=x+1;
+    }
+    else
+    {
+     x=x-1;
+    }
+    py=py+2*(dx1-dy1);
+   }
+   putpixel(fb,x,y,c);
+  }
+ }
+}
+
 int main(int argc, char **argv){
 	core::init(argc);
 	httpcInit(0x1000);
@@ -314,30 +409,24 @@ int main(int argc, char **argv){
 
 	gfxSetDoubleBuffering(GFX_TOP, true);
 	gfxSetDoubleBuffering(GFX_BOTTOM, false);
-	memset(gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL), 0x30, 400 * 240 * 3);
-	
-	gpu::swapBuffers(true);
-	memset(gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL), 0x30, 400 * 240 * 3);
-	
-	gpu::swapBuffers(true);
-
 
 	consoleInit(GFX_BOTTOM,NULL);
 	gfxSet3D(false);
 
-
 	printf("Initializing camera...");
-	
 	gpu::swapBuffers(true);
-	CAMU_SetSize(SELECT_OUT1, SIZE_VGA, CONTEXT_A);
+	CAMU_SetSize(SELECT_OUT1, SIZE_CTR_TOP_LCD, CONTEXT_A);
 	CAMU_SetOutputFormat(SELECT_OUT1, OUTPUT_RGB_565, CONTEXT_A);
 	CAMU_SetNoiseFilter(SELECT_OUT1, true);
-	CAMU_SetAutoExposure(SELECT_OUT1, false);
-	CAMU_SetAutoWhiteBalance(SELECT_OUT1, false);
-	//CAMU_SetEffect(SELECT_OUT1, EFFECT_NONE, CONTEXT_A);
+	CAMU_SetWhiteBalance(SELECT_OUT1, WHITE_BALANCE_AUTO);
+	CAMU_SetContrast(SELECT_OUT1, CONTRAST_NORMAL);
+	CAMU_SetAutoExposure(SELECT_OUT1, true);
+	CAMU_SetAutoWhiteBalance(SELECT_OUT1, true);
+	CAMU_SetAutoExposureWindow(SELECT_OUT1, 100, 20, 200, 200);
+	CAMU_SetAutoWhiteBalanceWindow(SELECT_OUT1, 100, 20, 400, 200);
 	CAMU_SetTrimming(PORT_CAM1, false);
+        CAMU_Activate(SELECT_OUT1);
 	printf("done.\n");
-	
 	gpu::swapBuffers(true);
 
 	u16 *camBuf = (u16*)malloc(WIDTH * HEIGHT * 2);
@@ -370,7 +459,8 @@ int main(int argc, char **argv){
 			break; // break in order to return to hbmenu
 
 		takePicture(camBuf);
-		writePictureToFramebufferRGB565(gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL), camBuf, 40, 0, WIDTH, HEIGHT);
+		writePictureToFramebufferRGB565(gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL), camBuf, 0, 0, WIDTH, HEIGHT);
+		gpu::swapBuffers(true);
 
 		int w=WIDTH, h=HEIGHT;
 		u8 *image = (u8*)quirc_begin(qr, &w, &h);
@@ -386,22 +476,27 @@ int main(int argc, char **argv){
 
 			quirc_extract(qr, i, &code);
 
+			writePictureToFramebufferRGB565(gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL), camBuf, 0, 0, WIDTH, HEIGHT);
+			for (int j = 0; j < 4; j++) {
+				struct quirc_point *a = &code.corners[j];
+				struct quirc_point *b = &code.corners[(j + 1) % 4];
+				bhm_line(gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL), a->x, a->y, b->x, b->y, 0x0077FF77);
+			}
+			gpu::swapBuffers(true);
+
 			err = quirc_decode(&code, &data);
 			if (!err){
+				CAMU_Activate(SELECT_NONE);
 				doWebInstall((char*)data.payload);
+				CAMU_Activate(SELECT_OUT1);
 				printf("Watching for QR codes...\nPress START to exit.\n");
 			}
-			// else	printf("DECODE FAILED: %s\n", quirc_strerror(err));
-	
 		}
-
-		// Flush and swap framebuffers
-		
-		gpu::swapBuffers(true);
 	}
 
+        CAMU_Activate(SELECT_NONE);
+
 	printf("Cleaning up...");
-	
 	gpu::swapBuffers(true);
 	quirc_destroy(qr);
 
@@ -411,7 +506,6 @@ int main(int argc, char **argv){
 	camExit();
 	httpcExit();
 	printf("done.\n");
-	
 
 	core::exit();
 	
