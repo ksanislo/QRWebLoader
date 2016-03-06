@@ -111,7 +111,7 @@ Result http_getinfo(char *url, app::App *app){
 
 		free(buf);
 	} else {
-		printf("HTTP status: %lu", statuscode);
+		printf("HTTP status: %lu\n", statuscode);
 	}
 
 	stop:
@@ -152,7 +152,6 @@ Result http_download(char *url, app::App *app){
 	if(ret!=0){
 		goto stop;
 	}
-
 	if(statuscode==200){
 		ret = httpcGetDownloadSizeState(&context, &downloadsize, &contentsize);
 		if(ret!=0){
@@ -167,16 +166,14 @@ Result http_download(char *url, app::App *app){
 
 		ret = httpcGetResponseHeader(&context, (char*)"Content-Encoding", (char*)buf, 16);
 		if(ret==0){
-			goto stop;
+			printf("Content-Encoding: %s\n", buf);
 		}
-
-		printf("Content-Encoding: %s\n", buf);
 
 		app::install(app->mediaType, &context, app->size, &onProgress);
 
 		free(buf);
 	} else {
-		printf("HTTP status: %lu", statuscode);
+		printf("HTTP status: %lu\n", statuscode);
 	}
 
 	stop:
@@ -279,6 +276,11 @@ int doWebInstall (char *url){
 
 	ret = http_getinfo(url, &app);
 	if(ret!=0)return ret;
+
+//	if(app.titleId>>48 != 0x4){ // 3DS titleId
+//		printf("Not a 3DS .cia file.\n");
+//		return -1;
+//	}
 
 	printf("titleId: 0x%llx\n", app.titleId);
 	if (app.titleId == TITLEID) printf("This .cia matches our titleId, direct\ninstall and uninstall disabled.\n");
