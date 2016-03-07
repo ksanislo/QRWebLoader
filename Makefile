@@ -15,7 +15,7 @@ endif
 
 # COMMON CONFIGURATION #
 
-NAME := web-loader
+NAME := QRWebLoader
 
 BUILD_DIR := build
 OUTPUT_DIR := output
@@ -35,7 +35,7 @@ RUN_FLAGS :=
 TITLE := $(NAME)
 DESCRIPTION := QR Web Loader
 AUTHOR := ksanislo
-PRODUCT_CODE := QRWebLoadr
+PRODUCT_CODE := QRWebLoader
 UNIQUE_ID := 0xB1989
 
 SYSTEM_MODE := 64MB
