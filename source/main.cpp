@@ -18,8 +18,8 @@ extern "C" {
 #define WIDTH 400
 #define HEIGHT 240
 #define WAIT_TIMEOUT 300000000ULL
-#define AUTOLOADER_FILE "web-updater.url"
-#define AUTOLOADER_URL "http://3ds.intherack.com/files/web-updater.cia"
+#define AUTOLOADER_FILE "autoloader.url"
+#define AUTOLOADER_URL "http://3ds.intherack.com/files/AutoLoader.cia"
 #define AUTOLOADER_TITLEID 0x000400000b198200
 #define TITLEID 0x000400000b198900
 
