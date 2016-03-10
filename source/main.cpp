@@ -277,10 +277,10 @@ int doWebInstall (char *url){
 	ret = http_getinfo(url, &app);
 	if(ret!=0)return ret;
 
-//	if(app.titleId>>48 != 0x4){ // 3DS titleId
-//		printf("Not a 3DS .cia file.\n");
-//		return -1;
-//	}
+	if(app.titleId>>48 != 0x4){ // 3DS titleId
+		printf("Not a 3DS .cia file.\n");
+		return -1;
+	}
 
 	printf("titleId: 0x%llx\n", app.titleId);
 	if (app.titleId == TITLEID) printf("This .cia matches our titleId, direct\ninstall and uninstall disabled.\n");
