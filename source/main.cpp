@@ -230,7 +230,7 @@ void writePictureToFramebufferRGB565(void *fb, void *img, u16 x, u16 y, u16 widt
 
 void putpixel(void *fb, int x, int y, u32 c) {
 	u8 *fb_8 = (u8*) fb;
-	u32 v = ((HEIGHT - y) + (x * HEIGHT)) * 3;
+	u32 v = ((HEIGHT - y - 1) + (x * HEIGHT)) * 3;
 	fb_8[ v ] = (((c) >>  0) & 0xFF);
 	fb_8[v+1] = (((c) >>  8) & 0xFF);
 	fb_8[v+2] = (((c) >> 16) & 0xFF);
