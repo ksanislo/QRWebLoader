@@ -1,3 +1,5 @@
+## [FBI](https://github.com/Steveice10/FBI) now has preleminary QR install support, as such, further development efforts will be focused toward extending the MEGA file (and eventually folder support) to that application instead.
+
 # QR Web Loader
 
 Usage:
